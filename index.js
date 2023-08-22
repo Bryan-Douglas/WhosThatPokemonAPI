@@ -26,9 +26,9 @@ app.use(async (req, res, next) => {
     }
 })
 
-app.use('/', routes);
+app.use('/pokemon', routes);
 
-app.get('/', (req, res) => {
+app.get('/pokemon', (req, res) => {
     res.send(`'Express is running'`);
 });
 
