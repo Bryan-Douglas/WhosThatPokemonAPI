@@ -16,15 +16,20 @@ app.use(cors({ origin: CORS_ORIGIN })); // Makes the app use the cors origin
 app.use(express.json()); // 
 app.use(express.static('public')); //
 
-app.use(async (req, res, next) => {
+app.get('/api/getRandomPokemon', async (req, res) => {
     try {
-        const response= await axios.get('https://pokeapi.co/api/v2/pokemon/');
-        req.pokeApiResponse = response.data; 
-        next();
-    } catch (error) {
-        next(error);
+        const randomPokemonId = generateRandomPokemonId();
+        const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${randomPokemonId}`);
+        res.json(response.data);
     }
-})
+    catch (error) {
+        console.error('Error retrieving Pokemon data', error);
+        res.status(500).json(`Server is running on port ${PORT}`);
+    }})
+
+function generateRandomPokemonId() {
+    return Math.floor(Math.random() * 1004) + 1;
+}    
 
 app.use('/pokemon', routes);
 
