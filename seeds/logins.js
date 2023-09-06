@@ -6,13 +6,12 @@ const { v4: uuidv4 } = require('uuid');
 
 exports.seed = async (knex) => {
     // Deletes ALL existing entries
-    await knex('scores').del();
-    await knex('scores').insert([
+    await knex('logins').del();
+    await knex('logins').insert([
         {
-            rank_id: uuidv4(),
-            rank: 1,
-            name: 'Red',
-            score: 151,
+            login_id: uuidv4(),
+            username: 'Mr. Kibbles',
+            password: 'testpass'
         },
     ]);
 };

@@ -6,9 +6,10 @@
 exports.up = async function (knex) {
     await knex.schema.dropTableIfExists('scores')
     await knex.schema.createTable('scores', (table) => {
-        table.increments('rank_id').primary();
+        table.string('rank_id', 255).notNullable().primary();
         table.string('name').notNullable();
         table.integer('score').notNullable();
+        table.integer('rank').notNullable();
     });
 };
 
