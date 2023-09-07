@@ -30,109 +30,166 @@ app.use(express.static('public')); //
 const routes = require('./routes/routes');
 app.use('/api', routes);
 
-const authorize = (req, res, next) => {
-  if (!req.headers.authorization) {
-    return res.status(401).json({ message: 'no token found' })
-  }
+// const authorize = (req, res, next) => {
+//   if (!req.headers.authorization) {
+//     return res.status(401).json({ message: 'no token found' })
+//   }
 
-  // Token comes in as 'Bearer <Token>' so the token will be in position 1
-  const authTokenArray = req.headers.authorization.split(' ');
+//   // Token comes in as 'Bearer <Token>' so the token will be in position 1
+//   const authTokenArray = req.headers.authorization.split(' ');
 
-  if (authTokenArray[0].toLowerCase() !== 'bearer' && authTokenArray.length !== 2) {
-    return res.status(401).json({ message: 'Invalid token' });
-  }
+//   if (authTokenArray[0].toLowerCase() !== 'bearer' && authTokenArray.length !== 2) {
+//     return res.status(401).json({ message: 'Invalid token' });
+//   }
 
-  // Validates the JWT token
-  jwt.verify(authTokenArray[1], process.env.JWT_SECRET, (err, decoded) => {
+//   // Validates the JWT token
+//   jwt.verify(authTokenArray[1], process.env.JWT_SECRET, (err, decoded) => {
 
-    if (err) {
-      return res.status(401).json({ message: 'The token is expired or invalid' });
-    }
-  });
-}
+//     if (err) {
+//       return res.status(401).json({ message: 'The token is expired or invalid' });
+//     }
+//     next();
+//   });
+// }
 
-// Registration endpoint
-app.post(
-  '/api/register',
-  [
-    body('username')
-    .isLength({ min: 4 })
-    .withMessage('Username must be at least 4 characters long')
-    .trim()
-    .escape(),
-    body('password')
-    .isLength({ min: 4 })
-    .withMessage('Password must be at least 4 characters long')
-    .trim()
-    .escape(),
-  ],
-  (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+// // Registration endpoint
+// app.post(
+//   '/api/register',
+//   [
+//     body('username')
+//       .isLength({ min: 4 })
+//       .withMessage('Username must be at least 4 characters long')
+//       .trim()
+//       .escape(),
+//     body('password')
+//       .isLength({ min: 4 })
+//       .withMessage('Password must be at least 4 characters long')
+//       .trim()
+//       .escape(),
+//   ],
+//   (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
 
-    const { username, password } = req.body;
+//     const { username, password } = req.body;
 
-    // Hashes the password using bcrypt
-    const saltRounds = 10;
-    bcrypt.hash(password, saltRounds, async (err, hash) => {
-      if (err) {
-        console.error('Error hashing password:', err);
-        return res.status(500).json({ message: 'Internal server error' });
-      }
-      try {
-        const userId = await knex('logins').insert({
-          username: username,
-          password: hash,
-        });
+//     // Hashes the password using bcrypt
+//     const saltRounds = 10;
+//     bcrypt.hash(password, saltRounds, async (err, hash) => {
+//       if (err) {
+//         console.error('Error hashing password:', err);
+//         return res.status(500).json({ message: 'Internal server error' });
+//       }
+//       try {
+//         const userId = await knex('logins').insert({
+//           username: username,
+//           password: hash,
+//         });
 
-        res.status(201).json({ message: 'User registered successfully', userId: userId });
-      } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).json({ message: 'Internal server error' });
-      }
-    })
-  });
+//         res.status(201).json({ message: 'User registered successfully', userId: userId });
+//       } catch (error) {
+//         console.error('Error registering user:', error);
+//         res.status(500).json({ message: 'Internal server error' });
+//       }
+//     })
+//   });
 
-// Logins endpoint
-app.post('/api/logins', (req, res) => {
-  const { username, password } = req.body;
+// // Logins endpoint
+// app.post('/api/logins', authorize, async (req, res) => {
+//   const { username, password } = req.body;
 
-  knex('logins')
-    .select('login_id', 'password')
-    .where('username', username)
-    .first()
-    .then((user) => {
-      if (!user) {
-        return res.status(403).json({ message: `This user doesn't exist. Please sign up!` });
-      }
+//   try {
+//     const user = await knex('logins')
+//       .select('login_id', 'password')
+//       .where('username', username)
+//       .first();
 
-      // Compares the provided password with the stored hash
-      bcrypt.compare(password, user.password, (err, result) => {
-        if (err) {
-          console.error('Error comparing passwords:', err);
-          return res.status(500).json({ message: 'Internal server error' });
-        }
-        if (result) {
-          // Generate a token and send it back
-          const token = jwt.sign({
-            name: user.name,
-            username: username,
-            loginTime: Date.now()
-          }, process.env.JWT_SECRET, { expiresIn: '31d' });
+//     if (!user) {
+//       // If the user doesn't exist, create a new account
+//       const saltRounds = 10;
+//       bcrypt.hash(password, saltRounds, async (err, hash) => {
+//         if (err) {
+//           console.error('Error hashing password:', err);
+//           return res.status(500).json({ message: 'Internal server error' });
+//         }
+//         try {
+//           const userId = await knex('logins').insert({
+//             username: username,
+//             password: hash,
+//           });
 
-          return res.status(200).json({ token });
-        } else {
-          return res.status(403).json({ message: 'Invalid username or password' });
-        }
-      });
-    })
-    .catch((error) => {
-      console.error('Error querying user data:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    });
-});
+//           // Generates a token for the new user and returns it
+//           const token = jwt.sign({
+//             name: username,
+//             username: username,
+//             loginTime: Date.now()
+//           }, process.env.JWT_SECRET, { expiresIn: '31d' });
+          
+//           res.status(200).json({ token }); // Send the response here
+//         } catch (error) {
+//           console.error('Error registering user:', error);
+//           res.status(500).json({ message: 'Internal server error' });
+//         }
+//       });
+//     } else {
+//       // If the user exists, compare passwords
+//       bcrypt.compare(password, user.password, (err, result) => {
+//         if (err) {
+//           console.error('Error comparing passwords:', err);
+//           return res.status(500).json({ message: 'Internal server error' });
+//         }
+//         if (result) {
+//           // Generate a token and send it back
+//           const token = jwt.sign({
+//             name: username,
+//             username: username,
+//             loginTime: Date.now()
+//           }, process.env.JWT_SECRET, { expiresIn: '31d' });
+
+//           res.status(200).json({ token }); // Send the response here
+//         } else {
+//           res.status(403).json({ message: 'Invalid username or password' }); // Send the response here
+//         }
+//       });
+//     }
+//   } catch (error) {
+//     console.error('Error querying user data:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+
+// app.get('/api/logins', (req, res) => {
+  
+// // Token comes in as 'Bearer <Token>' so the token will be in position 1
+// const authTokenArray = req.headers.authorization.split(' ');
+
+// if (!authTokenArray || authTokenArray.length !== 2 || authTokenArray[0].toLowerCase() !== 'bearer') {
+//   return res.status(401).json({ message: 'Invalid token' });
+// }
+
+//     // Validates the JWT token
+//     const token = authTokenArray[1];
+//     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+//       if (err) {
+//         return res.status(401).json({ message: 'The token is expired or invalid' });
+//       }
+//       // If the token is valid, you can proceed to the next middleware
+//       next();
+//     });
+
+//   knex
+//     .select('*')
+//     .from('logins')
+//     .then((data) => {
+//       res.json(data);
+//     })
+//     .catch((error) => {
+//       console.error('Error getting logins:', error);
+//       res.status(500).send('Error getting logins');
+//     })
+// });
 
 app.get('/api/scores', (req, res) => {
   knex
@@ -142,6 +199,7 @@ app.get('/api/scores', (req, res) => {
       res.json(data);
     })
     .catch((error) => {
+      console.error('Error getting scores:', error);
       res.status(500).send('Error getting scores');
     })
 });
@@ -155,8 +213,8 @@ app.post('/api/submitScore', async (req, res) => {
 
     // Calculates the rank based on the submitted score
     const newRankQuery = knex('scores')
-    .count('rank as rank')
-    .where('score', '>', score);
+      .count('rank as rank')
+      .where('score', '>', score);
     const [{ rank }] = await newRankQuery;
 
     // Increments the rank by 1 to get the correct rank for the new score
@@ -173,31 +231,31 @@ app.post('/api/submitScore', async (req, res) => {
       await trx('scores').insert({ rank_id, name, score, rank: newRank });
 
       const updatedScores = await knex
-    .select('*')
-    .from('scores')
-    .orderBy('score', 'desc'); // Orders scores by highest to lowest
+        .select('*')
+        .from('scores')
+        .orderBy('score', 'desc'); // Orders scores by highest to lowest
 
-    for (let i = 0; i < updatedScores.length; i++) {
-      await trx('scores')
-      .where('rank_id', updatedScores[i].rank_id)
-      .update('rank', i + 1);
-    }
+      for (let i = 0; i < updatedScores.length; i++) {
+        await trx('scores')
+          .where('rank_id', updatedScores[i].rank_id)
+          .update('rank', i + 1);
+      }
     });
 
 
 
     // Fetch the updated list of scores
     const updatedScores = await knex
-    .select('*')
-    .from('scores')
-    .orderBy('score', 'desc'); // Orders scores by highest to lowest
+      .select('*')
+      .from('scores')
+      .orderBy('score', 'desc'); // Orders scores by highest to lowest
 
     // for (let i = 0; i < updatedScores.length; i++) {
     //   await trx('scores')
     //   .where('rank_id', updatedScores[i].rank_id)
     //   .update('rank', i + 1);
     // }
-  
+
     // Responds with a success message or the inserted data
     res.status(201).json({ message: 'Score submitted successfully', scores: updatedScores });
   } catch (error) {
